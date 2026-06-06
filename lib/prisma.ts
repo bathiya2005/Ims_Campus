@@ -1,21 +1,23 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import type { PrismaClient } from '@prisma/client'
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 
-const globalForPrisma = globalThis as unknown as { prisma: any }
-
-function createPrismaClient() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PrismaClient } = require('@prisma/client')
-  const adapter = new PrismaMariaDb(process.env.DATABASE_URL!)
-  return new PrismaClient({ adapter })
-}
-
-export const prisma: PrismaClient = globalForPrisma.prisma || createPrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let prismaInstance: any = null
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getPrismaClient(): Promise<any> {
-  return prisma
+async function getPrisma(): Promise<any> {
+  if (!prismaInstance) {
+    const { PrismaClient } = await import('@prisma/client')
+    const adapter = new PrismaMariaDb(process.env.DATABASE_URL!)
+    prismaInstance = new PrismaClient({ adapter })
+  }
+  return prismaInstance
+}
+
+export const prisma = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $queryRaw: async (...args: any[]) => (await getPrisma()).$queryRaw(...args),
+} as never
+
+export async function getPrismaClient() {
+  return getPrisma()
 }

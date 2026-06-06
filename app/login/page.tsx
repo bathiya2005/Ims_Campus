@@ -37,7 +37,7 @@ export default function LoginPage() {
             <img src="/logo.jpeg" alt="IMS Campus Logo" className="h-16 w-16 object-contain" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">IMS Campus</h1>
-          <p className="text-blue-100 text-lg">Student Registration & Management System</p>
+          <p className="text-blue-100 text-lg">IT Management System</p>
         </div>
       </div>
 

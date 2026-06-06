@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose?
           </div>
           <div>
             <div className="font-bold text-white text-sm leading-tight">IMS Campus</div>
-            <div className="text-xs text-slate-400 leading-tight">Management System</div>
+            <div className="text-xs text-slate-400 leading-tight">IT Management System</div>
           </div>
           <button onClick={onClose} className="ml-auto lg:hidden text-slate-400 hover:text-white">
             <X className="w-5 h-5" />

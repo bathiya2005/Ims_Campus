@@ -25,7 +25,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-800">IMS Campus Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Student Registration & Management System</p>
+          <p className="text-sm text-slate-500 mt-0.5">IT Management System</p>
         </div>
         <div className="flex gap-2">
           <Link href="/dashboard/certificate" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">

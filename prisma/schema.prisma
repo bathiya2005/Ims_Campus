@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CourseLevel {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  batches   Batch[]
+}
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  batches   Batch[]
+}
+
+model Batch {
+  id            Int         @id @default(autoincrement())
+  year          Int
+  courseLevelId Int
+  branchId      Int
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  courseLevel   CourseLevel @relation(fields: [courseLevelId], references: [id])
+  branch        Branch      @relation(fields: [branchId], references: [id])
+  students      Student[]
+
+  @@unique([year, courseLevelId, branchId])
+}
+
+model Student {
+  id             Int             @id @default(autoincrement())
+  regNumber      String
+  fullName       String
+  nicNumber      String
+  telephone      String
+  photoPath      String?
+  batchId        Int
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  batch          Batch           @relation(fields: [batchId], references: [id])
+  attendance     Attendance[]
+  examResults    ExamResult[]
+  coursePayments CoursePayment[]
+  examPayments   ExamPayment[]
+  repeatExams    RepeatExam[]
+}
+
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  date      DateTime
+  isPresent Boolean
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+}
+
+model Exam {
+  id           Int           @id @default(autoincrement())
+  name         String
+  examDate     DateTime?
+  batchId      Int?
+  fee          Float         @default(0)
+  courseLevel  String?
+  createdAt    DateTime      @default(now())
+  examResults  ExamResult[]
+  examPayments ExamPayment[]
+  repeatExams  RepeatExam[]
+}
+
+model ExamResult {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  examId    Int
+  marks     Float?
+  grade     String?
+  isPassed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exam      Exam     @relation(fields: [examId], references: [id])
+
+  @@unique([studentId, examId])
+}
+
+model RepeatExam {
+  id        Int       @id @default(autoincrement())
+  studentId Int
+  examId    Int
+  attemptNo Int
+  marks     Float?
+  isPassed  Boolean   @default(false)
+  fee       Float     @default(0)
+  isPaid    Boolean   @default(false)
+  examDate  DateTime?
+  createdAt DateTime  @default(now())
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exam      Exam      @relation(fields: [examId], references: [id])
+}
+
+model CoursePayment {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  monthNumber Int
+  amount      Float
+  paidDate    DateTime
+  createdAt   DateTime @default(now())
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, monthNumber])
+}
+
+model ExamPayment {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  examId    Int
+  amount    Float
+  paidDate  DateTime
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exam      Exam     @relation(fields: [examId], references: [id])
+}

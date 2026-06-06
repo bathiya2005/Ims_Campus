@@ -1,28 +1,41 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Users, Search, Eye, Edit2, Trash2, GraduationCap, Building2, RefreshCw } from 'lucide-react'
+import { Users, Search, Eye, Edit2, Trash2, GraduationCap, Building2, RefreshCw, X, Save } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Link from 'next/link'
 
 interface Student {
   id: number; regNumber: string; fullName: string; nicNumber: string; telephone: string
   photoPath: string | null; isActive: boolean
-  batch: { year: number; branch: { name: string }; courseLevel: { name: string; code: string } }
+  batch: { id: number; year: number; branch: { id: number; name: string }; courseLevel: { name: string; code: string } }
 }
+
+interface Branch { id: number; name: string }
 
 export default function StudentsPage() {
   const [search, setSearch] = useState('')
   const [filterLevel, setFilterLevel] = useState('all')
   const [filterBranch, setFilterBranch] = useState('all')
+  const [filterYear, setFilterYear] = useState('all')
   const [students, setStudents] = useState<Student[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
-  const branches = ['Galle','Matara','Nugegoda','Gampaha','Meegoda','Horana','Ratnapura']
+  const [editStudent, setEditStudent] = useState<Student | null>(null)
+  const [editForm, setEditForm] = useState({ fullName: '', nicNumber: '', telephone: '', regNumber: '', isActive: true })
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const years = ['2023', '2024', '2025', '2026', '2027']
 
   const load = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/students')
-      if (res.ok) setStudents(await res.json())
+      const [stuRes, brRes] = await Promise.all([
+        fetch('/api/students'),
+        fetch('/api/branches'),
+      ])
+      if (stuRes.ok) setStudents(await stuRes.json())
+      if (brRes.ok) setBranches(await brRes.json())
     } catch(e){} finally { setLoading(false) }
   }
 
@@ -30,10 +43,11 @@ export default function StudentsPage() {
 
   const filtered = students.filter(s => {
     const q = search.toLowerCase()
-    const matchSearch = !search || s.fullName.toLowerCase().includes(q) || s.regNumber.toLowerCase().includes(q) || s.nicNumber.includes(search) || s.telephone.includes(search)
+    const matchSearch = !search || s.fullName.toLowerCase().includes(q) || s.regNumber.toLowerCase().includes(q) || s.nicNumber.includes(search) || s.telephone.includes(search) || s.batch.branch.name.toLowerCase().includes(q)
     const matchLevel = filterLevel === 'all' || s.batch.courseLevel.code.toLowerCase() === filterLevel
-    const matchBranch = filterBranch === 'all' || s.batch.branch.name.toLowerCase() === filterBranch
-    return matchSearch && matchLevel && matchBranch
+    const matchBranch = filterBranch === 'all' || s.batch.branch.id.toString() === filterBranch
+    const matchYear = filterYear === 'all' || s.batch.year.toString() === filterYear
+    return matchSearch && matchLevel && matchBranch && matchYear
   })
 
   const del = async (id: number, name: string) => {
@@ -41,6 +55,34 @@ export default function StudentsPage() {
     const res = await fetch(`/api/students/${id}`, { method: 'DELETE' })
     if (res.ok) setStudents(p => p.filter(s => s.id !== id))
     else alert('Delete failed')
+  }
+
+  const openEdit = (s: Student) => {
+    setEditStudent(s)
+    setEditForm({ fullName: s.fullName, nicNumber: s.nicNumber, telephone: s.telephone, regNumber: s.regNumber, isActive: s.isActive })
+  }
+
+  const saveEdit = async () => {
+    if (!editStudent) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/students/${editStudent.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setStudents(p => p.map(s => s.id === editStudent.id ? { ...s, ...updated } : s))
+        setEditStudent(null)
+        setMsg('✅ Student updated!')
+        setTimeout(() => setMsg(''), 3000)
+      } else {
+        const d = await res.json()
+        setMsg('❌ ' + (d.message || 'Failed'))
+        setTimeout(() => setMsg(''), 3000)
+      }
+    } catch { setMsg('❌ Error') } finally { setSaving(false) }
   }
 
   return (
@@ -54,6 +96,12 @@ export default function StudentsPage() {
           <RefreshCw className="w-4 h-4"/>Refresh
         </button>
       </div>
+
+      {msg && (
+        <div className={`p-3 rounded-xl text-sm font-medium ${msg.startsWith('✅') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {msg}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -70,10 +118,10 @@ export default function StudentsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-          <input type="text" placeholder="Search name, reg, NIC, phone..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search name, reg, NIC, phone, branch..." value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"/>
         </div>
         <select value={filterLevel} onChange={e => setFilterLevel(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-700 focus:outline-none">
@@ -83,7 +131,11 @@ export default function StudentsPage() {
         </select>
         <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-700 focus:outline-none">
           <option value="all">All Branches</option>
-          {branches.map(b => <option key={b} value={b.toLowerCase()}>{b}</option>)}
+          {branches.map(b => <option key={b.id} value={b.id.toString()}>{b.name}</option>)}
+        </select>
+        <select value={filterYear} onChange={e => setFilterYear(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-700 focus:outline-none">
+          <option value="all">All Years</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
 
@@ -135,6 +187,7 @@ export default function StudentsPage() {
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-1">
                         <Link href={`/dashboard/students/${s.id}`} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Eye className="w-4 h-4"/></Link>
+                        <button onClick={() => openEdit(s)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"><Edit2 className="w-4 h-4"/></button>
                         <button onClick={() => del(s.id, s.fullName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4"/></button>
                       </div>
                     </td>
@@ -145,6 +198,54 @@ export default function StudentsPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editStudent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800">Edit Student</h3>
+              <button onClick={() => setEditStudent(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4"/></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Full Name *</label>
+                <input type="text" value={editForm.fullName} onChange={e => setEditForm({...editForm, fullName: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"/>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Reg Number *</label>
+                <input type="text" value={editForm.regNumber} onChange={e => setEditForm({...editForm, regNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"/>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">NIC Number *</label>
+                <input type="text" value={editForm.nicNumber} onChange={e => setEditForm({...editForm, nicNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"/>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Telephone *</label>
+                <input type="text" value={editForm.telephone} onChange={e => setEditForm({...editForm, telephone: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"/>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+                <select value={editForm.isActive ? 'active' : 'inactive'} onChange={e => setEditForm({...editForm, isActive: e.target.value === 'active'})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setEditStudent(null)} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button onClick={saveEdit} disabled={saving} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+                  <Save className="w-4 h-4"/>{saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

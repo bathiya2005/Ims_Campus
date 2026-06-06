@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const prisma = await getPrismaClient()
     const { searchParams } = new URL(request.url)
     const withStudents = searchParams.get('withStudents') === 'true'
-    const level = searchParams.get('level') // CERTIFICATE | DIPLOMA
+    const level = searchParams.get('level')
 
     const branches = await prisma.branch.findMany({
       orderBy: { name: 'asc' },
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const result = branches.map(b => ({
+    const result = branches.map((b: any) => ({
       id: b.id,
       name: b.name,
       code: b.code,

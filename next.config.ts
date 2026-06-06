@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    turbo: undefined,
+  },
 };
 
 export default nextConfig;

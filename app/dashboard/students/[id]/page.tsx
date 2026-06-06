@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { User, Phone, CreditCard, ClipboardList, BookOpen, ArrowLeft, Award, AlertCircle, DollarSign, CheckCircle, XCircle, Plus, Save } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 
-interface Exam { id: number; name: string; fee: number }
+interface Exam { id: number; name: string; fee: number; courseLevel?: string | null }
 
 interface Student {
   id: number; fullName: string; regNumber: string; nicNumber: string; telephone: string; photoPath: string | null; isActive: boolean

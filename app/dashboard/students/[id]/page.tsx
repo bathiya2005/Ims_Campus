@@ -17,7 +17,6 @@ interface Student {
 }
 
 const TOTAL_MONTHS = 6
-const MONTHLY_FEE = 3000
 
 function gradeColor(g: string) {
   if (g === 'A') return 'text-emerald-600'
@@ -35,6 +34,19 @@ function gradeLabel(g: string) {
   return 'Fail'
 }
 
+// Calculate final result from all exam marks (average / 4 based)
+function calcFinalResult(examResults: Array<{ marks: number; grade: string; isPassed: boolean }>) {
+  if (examResults.length === 0) return null
+  const total = examResults.reduce((s, r) => s + (r.marks || 0), 0)
+  const avg = total / examResults.length
+  const scaled = avg / 4 // divide by 4 as per requirement
+  if (scaled >= 21.25) return { grade: 'A', label: 'First Class' }
+  if (scaled >= 18.75) return { grade: 'B', label: 'Second Upper' }
+  if (scaled >= 16.25) return { grade: 'C', label: 'Second Lower' }
+  if (scaled >= 12.5) return { grade: 'D', label: 'Pass' }
+  return { grade: 'F', label: 'Fail' }
+}
+
 export default function StudentProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [student, setStudent] = useState<Student | null>(null)
@@ -48,7 +60,7 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
   const [attPresent, setAttPresent] = useState(true)
 
   const [cpMonth, setCpMonth] = useState(1)
-  const [cpAmount, setCpAmount] = useState(MONTHLY_FEE)
+  const [cpAmount, setCpAmount] = useState(3000)
   const [cpDate, setCpDate] = useState(new Date().toISOString().split('T')[0])
 
   const [epExam, setEpExam] = useState('')
@@ -81,7 +93,6 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
 
   const isCertificate = student?.batch?.courseLevel?.code === 'CERTIFICATE'
 
-  // Filter exams by program
   const programExams = exams.filter(e =>
     e.courseLevel === student?.batch?.courseLevel?.code || e.courseLevel === null || e.courseLevel === undefined
   )
@@ -148,12 +159,12 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
   const attPct = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0
   const paidMonths = student.coursePayments.length
   const paidAmount = student.coursePayments.reduce((s, p) => s + p.amount, 0)
-  const outstanding = Math.max(0, (TOTAL_MONTHS * MONTHLY_FEE) - paidAmount)
+  const totalMonthlyFee = student.coursePayments.reduce((s, p) => s + p.amount, 0)
   const passedExams = student.examResults.filter(r => r.isPassed).length
   const totalExams = student.examResults.length
   const totalExamFeesPaid = student.examPayments.reduce((s, p) => s + p.amount, 0)
+  const finalResult = calcFinalResult(student.examResults)
 
-  // Tabs — Certificate has no course-payment tab
   const tabs = [
     { id: 'attendance', label: 'Attendance', icon: ClipboardList },
     ...(!isCertificate ? [{ id: 'course-payment', label: 'Course Fees', icon: DollarSign }] : []),
@@ -162,17 +173,16 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
     { id: 'progress', label: 'Progress', icon: CheckCircle },
   ]
 
-  // Stats — Certificate shows exam fees instead of course fees
   const stats = isCertificate ? [
     { label: 'Attendance', value: `${attPct}%`, sub: `${presentDays}/${totalDays} days`, icon: ClipboardList, color: attPct >= 75 ? 'bg-emerald-600' : 'bg-red-500' },
     { label: 'Exam Fees Paid', value: `Rs.${totalExamFeesPaid.toLocaleString()}`, sub: `${student.examPayments.length} payments`, icon: DollarSign, color: 'bg-blue-600' },
     { label: 'Exams Passed', value: `${passedExams}/${totalExams}`, sub: totalExams === 0 ? 'No exams yet' : passedExams === totalExams ? 'All passed!' : 'In progress', icon: BookOpen, color: 'bg-violet-600' },
-    { label: 'Exams Pending', value: `${programExams.length - student.examPayments.length < 0 ? 0 : programExams.length - student.examPayments.length}`, sub: 'Fee not paid', icon: AlertCircle, color: 'bg-amber-500' },
+    { label: 'Final Result', value: finalResult ? finalResult.grade : '—', sub: finalResult ? finalResult.label : 'No results yet', icon: Award, color: finalResult?.grade === 'A' ? 'bg-emerald-600' : finalResult?.grade === 'F' ? 'bg-red-500' : 'bg-blue-600' },
   ] : [
     { label: 'Attendance', value: `${attPct}%`, sub: `${presentDays}/${totalDays} days`, icon: ClipboardList, color: attPct >= 75 ? 'bg-emerald-600' : 'bg-red-500' },
-    { label: 'Course Paid', value: `Rs.${paidAmount.toLocaleString()}`, sub: `${paidMonths}/${TOTAL_MONTHS} months`, icon: DollarSign, color: 'bg-blue-600' },
+    { label: 'Course Paid', value: `Rs.${paidAmount.toLocaleString()}`, sub: `${paidMonths} months paid`, icon: DollarSign, color: 'bg-blue-600' },
     { label: 'Exams Passed', value: `${passedExams}/${totalExams}`, sub: totalExams === 0 ? 'No exams yet' : passedExams === totalExams ? 'All passed!' : 'In progress', icon: BookOpen, color: 'bg-violet-600' },
-    { label: 'Outstanding', value: `Rs.${outstanding.toLocaleString()}`, sub: outstanding === 0 ? 'Fully paid ✅' : 'Amount due', icon: AlertCircle, color: outstanding === 0 ? 'bg-emerald-600' : 'bg-red-500' },
+    { label: 'Final Result', value: finalResult ? finalResult.grade : '—', sub: finalResult ? finalResult.label : 'No results yet', icon: Award, color: finalResult?.grade === 'A' ? 'bg-emerald-600' : finalResult?.grade === 'F' ? 'bg-red-500' : 'bg-blue-600' },
   ]
 
   return (
@@ -191,7 +201,6 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      {/* Profile Header */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <div className="flex flex-col sm:flex-row gap-5">
           <div className="w-24 h-24 bg-blue-100 rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -206,7 +215,7 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
                   <Badge variant="info">{student.batch.courseLevel.name}</Badge>
                   <Badge variant="default">{student.batch.branch.name}</Badge>
                   <Badge variant="default">{student.batch.year} Batch</Badge>
-                  {isCertificate && <Badge variant="warning">Certificate — No Course Fees</Badge>}
+                  {isCertificate && <Badge variant="warning">Certificate — Exam Fees Only</Badge>}
                 </div>
               </div>
               <Badge variant={student.isActive ? 'success' : 'default'}>{student.isActive ? 'Active' : 'Inactive'}</Badge>
@@ -219,7 +228,6 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4">
@@ -233,7 +241,6 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
         ))}
       </div>
 
-      {/* Tabs */}
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="border-b border-slate-100 px-4 overflow-x-auto">
           <div className="flex gap-1 min-w-max">
@@ -303,16 +310,19 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
             </div>
           )}
 
-          {/* COURSE PAYMENT — Diploma only */}
+          {/* COURSE PAYMENT — Diploma only, manual amount */}
           {activeTab === 'course-payment' && !isCertificate && (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-emerald-50 rounded-xl p-3"><div className="text-2xl font-bold text-emerald-700">{paidMonths}</div><div className="text-xs text-emerald-600">Paid Months</div></div>
                 <div className="bg-amber-50 rounded-xl p-3"><div className="text-2xl font-bold text-amber-700">{TOTAL_MONTHS - paidMonths}</div><div className="text-xs text-amber-600">Remaining</div></div>
-                <div className="bg-red-50 rounded-xl p-3"><div className="text-xl font-bold text-red-700">Rs.{outstanding.toLocaleString()}</div><div className="text-xs text-red-600">Outstanding</div></div>
+                <div className="bg-blue-50 rounded-xl p-3"><div className="text-xl font-bold text-blue-700">Rs.{totalMonthlyFee.toLocaleString()}</div><div className="text-xs text-blue-600">Total Paid</div></div>
               </div>
               <div className="border border-slate-200 rounded-xl p-4">
                 <h4 className="font-semibold text-slate-800 mb-3">Record Course Payment</h4>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 mb-3">
+                  Enter the actual fee amount — it can vary per month.
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Month</label>
@@ -324,8 +334,8 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Amount (Rs.)</label>
-                    <input type="number" value={cpAmount} onChange={e => setCpAmount(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none" />
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Amount (Rs.) *</label>
+                    <input type="number" value={cpAmount} onChange={e => setCpAmount(Number(e.target.value))} placeholder="Enter amount" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
@@ -347,24 +357,23 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
                       <div key={m} className="flex items-center justify-between py-2.5 px-4 bg-slate-50 rounded-xl">
                         <span className="text-sm font-medium text-slate-700">Month {m}</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm text-slate-600">Rs. {MONTHLY_FEE.toLocaleString()}</span>
                           {payment ? (
                             <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-emerald-600">Rs. {payment.amount.toLocaleString()}</span>
                               <Badge variant="success">Paid</Badge>
                               <span className="text-xs text-slate-400">{new Date(payment.paidDate).toLocaleDateString('en-LK')}</span>
                             </div>
-                          ) : <Badge variant="warning">Pending</Badge>}
+                          ) : (
+                            <Badge variant="warning">Pending</Badge>
+                          )}
                         </div>
                       </div>
                     )
                   })}
                 </div>
                 <div className="mt-3 p-3 bg-slate-100 rounded-xl flex justify-between items-center">
-                  <span className="font-semibold text-slate-700">Total</span>
-                  <div className="text-right">
-                    <div className="text-sm text-emerald-600 font-bold">Paid: Rs. {paidAmount.toLocaleString()}</div>
-                    <div className="text-sm text-red-600 font-bold">Due: Rs. {outstanding.toLocaleString()}</div>
-                  </div>
+                  <span className="font-semibold text-slate-700">Total Paid</span>
+                  <span className="text-emerald-600 font-bold">Rs. {totalMonthlyFee.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -472,6 +481,20 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
                   </div>
                 )}
               </div>
+
+              {/* Final Result Banner */}
+              {finalResult && (
+                <div className={`p-4 rounded-xl border-2 ${finalResult.grade === 'A' ? 'bg-emerald-50 border-emerald-300' : finalResult.grade === 'B' ? 'bg-blue-50 border-blue-300' : finalResult.grade === 'C' ? 'bg-cyan-50 border-cyan-300' : finalResult.grade === 'D' ? 'bg-amber-50 border-amber-300' : 'bg-red-50 border-red-300'}`}>
+                  <div className="flex items-center gap-3">
+                    <Award className={`w-6 h-6 ${gradeColor(finalResult.grade)}`} />
+                    <div>
+                      <div className="text-xs font-medium text-slate-500 mb-0.5">Final Result (Average / 4)</div>
+                      <div className={`text-xl font-bold ${gradeColor(finalResult.grade)}`}>{finalResult.grade} — {finalResult.label}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
                   <div className="text-2xl font-bold text-emerald-700">{passedExams}</div>
@@ -483,7 +506,7 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold text-slate-800 mb-2">Results</h4>
+                <h4 className="font-semibold text-slate-800 mb-2">Individual Results</h4>
                 {student.examResults.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-6">No results yet</p>
                 ) : (
@@ -525,7 +548,7 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
                     <h4 className="font-semibold text-slate-800 mb-3">Course Fee Progress</h4>
                     <div className="flex justify-between text-sm mb-1"><span>Paid</span><span className="text-blue-600 font-bold">{paidMonths}/{TOTAL_MONTHS} months</span></div>
                     <div className="h-4 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${(paidMonths / TOTAL_MONTHS) * 100}%` }}></div></div>
-                    <div className="text-xs text-slate-500 mt-1">Rs. {paidAmount.toLocaleString()} paid · Rs. {outstanding.toLocaleString()} due</div>
+                    <div className="text-xs text-slate-500 mt-1">Rs. {paidAmount.toLocaleString()} paid total</div>
                   </div>
                 )}
 
@@ -546,6 +569,11 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
 
                 <div className="bg-slate-50 rounded-xl p-4">
                   <h4 className="font-semibold text-slate-800 mb-3">Overall Status</h4>
+                  {finalResult && (
+                    <div className={`mb-3 p-2 rounded-lg text-center ${gradeColor(finalResult.grade)} font-bold`}>
+                      Final: {finalResult.grade} — {finalResult.label}
+                    </div>
+                  )}
                   {(() => {
                     const feesOk = isCertificate
                       ? student.examPayments.length >= programExams.length && programExams.length > 0
@@ -579,6 +607,12 @@ export default function StudentProfilePage({ params }: { params: Promise<{ id: s
                       </div>
                     ))}
                   </div>
+                  {finalResult && (
+                    <div className={`mt-3 p-3 rounded-xl text-center border-2 ${finalResult.grade === 'A' ? 'bg-emerald-50 border-emerald-300' : finalResult.grade === 'B' ? 'bg-blue-50 border-blue-300' : finalResult.grade === 'C' ? 'bg-cyan-50 border-cyan-300' : finalResult.grade === 'D' ? 'bg-amber-50 border-amber-300' : 'bg-red-50 border-red-300'}`}>
+                      <div className="text-xs text-slate-500 mb-1">Final Result (Total Average ÷ 4)</div>
+                      <div className={`text-2xl font-bold ${gradeColor(finalResult.grade)}`}>{finalResult.grade} — {finalResult.label}</div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
